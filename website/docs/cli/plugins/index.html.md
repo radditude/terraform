@@ -7,7 +7,7 @@ page_title: "Managing Plugins - Terraform CLI"
 
 Terraform relies on plugins called "providers" in order to manage various types
 of resources. (For more information about providers, see
-[About Providers](/docs/configuration/about-providers.html) in the Terraform
+[Providers](/docs/configuration/blocks/providers/index.html) in the Terraform
 language docs.)
 
 -> **Note:** Providers are currently the only plugin type most Terraform users
