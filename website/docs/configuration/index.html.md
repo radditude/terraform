@@ -6,7 +6,9 @@ page_title: "Overview - Configuration Language"
 # Terraform Language Documentation
 
 This is the documentation for Terraform's configuration language. It is relevant
-to users of Terraform CLI, Terraform Cloud, and Terraform Enterprise.
+to users of [Terraform CLI](/docs/cli-index.html),
+[Terraform Cloud](/docs/cloud/index.html), and
+[Terraform Enterprise](/docs/enterprise/index.html).
 
 > **Hands-on:** Try the [Terraform: Get Started](https://learn.hashicorp.com/collections/terraform/aws-get-started?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS) collection on HashiCorp Learn.
 
@@ -14,38 +16,103 @@ _The Terraform language is Terraform's primary user interface._ In every edition
 of Terraform, a configuration written in the Terraform language is always at the
 heart of the workflow.
 
-## What's in This Documentation
+## About the Terraform Language
 
-This documentation focuses on the syntax and features of Terraform's
-configuration language. It also includes information about how Terraform handles
-state, since state is relevant to all editions of Terraform and is deeply tied
-to the language's representation of resources.
+The main purpose of the Terraform language is declaring
+[resources](./resources.html), which represent infrastructure objects. All other
+language features exist only to make the definition of resources more flexible
+and convenient.
 
-**This is not the only documentation you will need in order to use Terraform.**
-Depending on the task at hand, you might need to consult some of the following:
+A _Terraform configuration_ is a complete document in the Terraform language
+that tells Terraform how to manage a given collection of infrastructure. A
+configuration can consist of multiple files and directories.
 
-- [Terraform CLI Documentation](/docs/cli-index.html) — Terraform CLI is an
-  open-source command-line application that manages infrastructure resources
-  based on a configuration written in the Terraform language.
-- [Terraform Cloud and Enterprise Documentation](/docs/cloud/index.html) — 
-  Terraform Cloud (and its self-hosted form, Terraform Enterprise) is an
-  application that helps teams use Terraform together. It implements many of the
-  same Terraform workflows that Terraform CLI does, but handles some of them
-  differently.
-- [Provider References on the Terraform Registry](https://registry.terraform.io) —
-  All of Terraform's resource types are implemented by provider plugins.
-  Providers are distributed on the Terraform Registry, and each provider's
-  registry page includes documentation for its resource types and settings.
+The syntax of the Terraform language consists of only a few basic elements:
 
-## Where to Start
+```hcl
+resource "aws_vpc" "main" {
+  cidr_block = var.base_cidr_block
+}
 
-- **New user?** Try the
-  [Get Started collection](https://learn.hashicorp.com/collections/terraform/aws-get-started?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS)
-  at HashiCorp Learn, then return
-  here once you've used Terraform to manage some simple resources.
-- **Curious about Terraform?** See [Introduction to Terraform](/intro/index.html)
-  for a broad overview of what Terraform is and why people use it.
-- **Diving in?** Read the [Language Overview](./overview.html) to get oriented;
-  this page explains the structure and purpose of the language and provides some
-  realistic example code. Then, browse the navigation sidebar to find detailed
-  information about all of the language's features.
+<BLOCK TYPE> "<BLOCK LABEL>" "<BLOCK LABEL>" {
+  # Block body
+  <IDENTIFIER> = <EXPRESSION> # Argument
+}
+```
+
+- _Blocks_ are containers for other content and usually represent the
+  configuration of some kind of object, like a resource. Blocks have a
+  _block type,_ can have zero or more _labels,_ and have a _body_ that contains
+  any number of arguments and nested blocks. Most of Terraform's features are
+  controlled by top-level blocks in a configuration file.
+- _Arguments_ assign a value to a name. They appear within blocks.
+- _Expressions_ represent a value, either literally or by referencing and
+  combining other values. They appear as values for arguments, or within other
+  expressions.
+
+The Terraform language is declarative, describing an intended goal rather than
+the steps to reach that goal. The ordering of blocks and the files they are
+organized into are generally not significant; Terraform only considers implicit
+and explicit relationships between resources when determining an order of
+operations.
+
+### Example
+
+The following example describes a simple network topology for Amazon Web
+Services, just to give a sense of the overall structure and syntax of the
+Terraform language. Similar configurations can be created for other virtual
+network services, using resource types defined by other providers, and a
+practical network configuration will often contain additional elements not
+shown here.
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 1.0.4"
+    }
+  }
+}
+
+variable "aws_region" {}
+
+variable "base_cidr_block" {
+  description = "A /16 CIDR range definition, such as 10.1.0.0/16, that the VPC will use"
+  default = "10.1.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "A list of availability zones in which to create subnets"
+  type = list(string)
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_vpc" "main" {
+  # Referencing the base_cidr_block variable allows the network address
+  # to be changed without modifying the configuration.
+  cidr_block = var.base_cidr_block
+}
+
+resource "aws_subnet" "az" {
+  # Create one subnet for each given availability zone.
+  count = length(var.availability_zones)
+
+  # For each subnet, use one of the specified availability zones.
+  availability_zone = var.availability_zones[count.index]
+
+  # By referencing the aws_vpc.main object, Terraform knows that the subnet
+  # must be created only after the VPC is created.
+  vpc_id = aws_vpc.main.id
+
+  # Built-in functions and operators can be used for simple transformations of
+  # values, such as computing a subnet address. Here we create a /20 prefix for
+  # each subnet, using consecutive addresses for each availability zone,
+  # such as 10.1.16.0/20 .
+  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 4, count.index+1)
+}
+```
+
