@@ -232,6 +232,26 @@ authenticated requests to %s.
 		) + "\n",
 	)
 
+	if dispHostname == "app.terraform.io" {
+		c.Ui.Output(
+			fmt.Sprintf(
+				c.Colorize().Color(strings.TrimSpace(`
+[green]If you're new to Terraform Cloud, you can get set up and start provisioning infrastructure
+in 15 minutes with the example repo at https://github.com/hashicorp/tfc-getting-started.
+
+Clone the example repo:[reset]
+
+[bold]git clone https://github.com/hashicorp/tfc-getting-started.git
+cd tfc-getting-started[reset]
+
+[green]Then run the setup script:[reset]
+
+[bold]scripts/setup.sh[reset]
+`)),
+			) + "\n",
+		)
+	}
+
 	return 0
 }
 
@@ -590,6 +610,10 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 
 	c.Ui.Output(fmt.Sprintf("Terraform will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
 
+	if grantType == "" {
+		c.Ui.Output(fmt.Sprintf("You'll be asked to create an API token, then paste it into the prompt.\n"))
+	}
+
 	if grantType.UsesAuthorizationEndpoint() {
 		c.Ui.Output(
 			"This will work only if you are able to use a web browser on this computer to\ncomplete a login process. If not, you must obtain an API token by another\nmeans and configure it in the CLI configuration manually.\n",
@@ -607,10 +631,21 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		}
 	}
 
+	var promptQuery string
+	var promptDescription string
+
+	if grantType == "" {
+		promptQuery = "Do you want to open your browser?"
+		promptDescription = "Type 'yes' to continue logging in."
+	} else {
+		promptQuery = "Do you want to proceed?"
+		promptDescription = `Only 'yes' will be accepted to confirm.`
+	}
+
 	v, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
 		Id:          "approve",
-		Query:       "Do you want to proceed?",
-		Description: `Only 'yes' will be accepted to confirm.`,
+		Query:       promptQuery,
+		Description: promptDescription,
 	})
 	if err != nil {
 		// Should not happen because this command checks that input is enabled
